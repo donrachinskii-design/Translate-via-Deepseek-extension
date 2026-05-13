@@ -5,15 +5,24 @@
   <title>Настройки DeepSeek</title>
   <style>
     body { font-family: sans-serif; width: 250px; padding: 10px; }
-    input { width: 95%; margin-bottom: 10px; }
+    input, select { width: 95%; margin-bottom: 10px; padding: 5px; }
     button { width: 100%; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h3>Настройки DeepSeek</h3>
-  <label for="apiKey">API Ключ:</label>
-  <input type="password" id="apiKey" placeholder="Введите ваш API ключ">
+  <label for="apiKey">API ключ DeepSeek:</label>
+  <input type="password" id="apiKey" placeholder="Введите API ключ" oncopy="return false" oncut="return false">
+  
+  <label for="targetLanguage">Язык перевода:</label>
+  <select id="targetLanguage">
+    <option value="russian">Русский</option>
+    <option value="english">English</option>
+  </select>
+  
   <button id="save">Сохранить</button>
+  <div id="status"></div>
+
   <script src="popup.js"></script>
 </body>
 </html>

@@ -49,6 +49,14 @@
   color: #333;
 }
 
+#deepseek-popup-content p {
+  margin: 0 0 12px 0;
+}
+
+#deepseek-popup-content p:last-child {
+  margin-bottom: 0;
+}
+
 .deepseek-loader {
   border: 4px solid #f3f3f3;
   border-top: 4px solid #4a90e2;

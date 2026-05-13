@@ -28,7 +28,6 @@ function showLoader() {
   `;
   document.body.appendChild(loader);
   
-  // Добавляем обработчик Escape
   addEscapeHandler(loader);
 }
 
@@ -53,7 +52,6 @@ function showTranslationPopup(text) {
     popup.remove();
   });
   
-  // Добавляем обработчик Escape
   addEscapeHandler(popup);
 }
 

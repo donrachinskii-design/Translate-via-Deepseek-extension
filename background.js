@@ -21,7 +21,7 @@ async function translateText(text, tabId) {
 
   chrome.tabs.sendMessage(tabId, { type: "show_loader" });
 
-  const { apiKey } = await chrome.storage.sync.get("apiKey");
+  const { apiKey, targetLanguage } = await chrome.storage.sync.get(["apiKey", "targetLanguage"]);
   if (!apiKey) {
     chrome.tabs.sendMessage(tabId, {
       type: "show_translation",
@@ -29,6 +29,13 @@ async function translateText(text, tabId) {
     });
     return;
   }
+
+  const language = targetLanguage || "russian";
+  const languageMap = {
+    "russian": "Russian",
+    "english": "English"
+  };
+  const targetLang = languageMap[language];
 
   try {
     const response = await fetch("https://api.deepseek.com/chat/completions", {
@@ -40,7 +47,12 @@ async function translateText(text, tabId) {
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          { "role": "system", "content": "Ты прекрасный переводчик. Переведи этот текст на русский язык для меня.\n" },
+          { 
+            "role": "system", 
+            "content": `You are an excellent translator. Translate the text into ${targetLang}. IMPORTANT: 
+1. Your response MUST NOT contain Chinese characters or symbols. Use only ${targetLang} and Latin script (if necessary for proper nouns or terms).
+2. Preserve the original paragraph structure and line breaks. Keep the same formatting as in the source text.`
+          },
           { "role": "user", "content": text }
         ]
       })
