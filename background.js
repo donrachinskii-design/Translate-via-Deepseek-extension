@@ -1,4 +1,3 @@
-
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "translate-text",
@@ -7,10 +6,20 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId === "translate-text" && info.selectionText) {
-    translateText(info.selectionText, tab.id);
-  }
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== "translate-text") return;
+
+  const scriptResult = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const selection = window.getSelection();
+      return selection.toString();
+    },
+  });
+
+  const selectionText = (scriptResult[0]?.result || '').trim();
+
+  if (selectionText) translateText(selectionText, tab.id);
 });
 
 async function translateText(text, tabId) {

@@ -1,6 +1,4 @@
 
-console.log("Скрипт content.js загружен.");
-
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "show_translation") {
     showTranslationPopup(request.translation);
