@@ -4,6 +4,11 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "Перевести с DeepSeek",
     contexts: ["selection"]
   });
+  chrome.contextMenus.create({
+    id: "tldr-text",
+    title: "TLDR с DeepSeek",
+    contexts: ["selection"]
+  });
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -20,6 +25,28 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const selectionText = (scriptResult[0]?.result || '').trim();
 
   if (selectionText) translateText(selectionText, tab.id);
+});
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId !== "translate-text" && info.menuItemId !== "tldr-text") return;
+
+  const scriptResult = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const selection = window.getSelection();
+      return selection.toString();
+    },
+  });
+
+  const selectionText = (scriptResult[0]?.result || '').trim();
+
+  if (selectionText) {
+    if (info.menuItemId === "translate-text") {
+      translateText(selectionText, tab.id);
+    } else if (info.menuItemId === "tldr-text") {
+      getTLDR(selectionText, tab.id);
+    }
+  }
 });
 
 async function translateText(text, tabId) {
@@ -89,6 +116,70 @@ async function translateText(text, tabId) {
     chrome.tabs.sendMessage(tabId, {
       type: "show_translation",
       translation: `Ошибка перевода: ${error.message}`
+    });
+  }
+}
+
+async function getTLDR(text, tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ["content.js"]
+  });
+
+  chrome.tabs.sendMessage(tabId, { type: "show_loader" });
+
+  const { apiKey, targetLanguage } = await chrome.storage.sync.get(["apiKey", "targetLanguage"]);
+  if (!apiKey) {
+    chrome.tabs.sendMessage(tabId, {
+      type: "show_translation",
+      translation: "Ошибка: API ключ DeepSeek не установлен. Нажмите на иконку расширения, чтобы его добавить."
+    });
+    return;
+  }
+
+  const language = targetLanguage || "russian";
+  const languageMap = {
+    "russian": "Russian",
+    "english": "English"
+  };
+  const targetLang = languageMap[language];
+
+  try {
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-v4-flash",
+        messages: [
+          { 
+            "role": "system", 
+            "content": `You are a helpful assistant. Summarize the following text in ${targetLang}. Provide a concise summary (TLDR).`
+          },
+          { "role": "user", "content": text }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      let errorDetails = await response.text();
+      throw new Error(`Ошибка API: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const tldr = data.choices[0].message.content;
+
+    chrome.tabs.sendMessage(tabId, {
+      type: "show_translation",
+      translation: tldr
+    });
+
+  } catch (error) {
+    chrome.tabs.sendMessage(tabId, {
+      type: "show_translation",
+      translation: `Ошибка TLDR: ${error.message}`
     });
   }
 }

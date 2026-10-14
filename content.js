@@ -17,7 +17,7 @@ function showLoader() {
   loader.id = "deepseek-translation-popup";
   loader.innerHTML = `
     <div id="deepseek-popup-header">
-      <span>Перевод DeepSeek</span>
+      <span id="deepseek-popup-title">DeepSeek Translator</span>
     </div>
     <div id="deepseek-popup-content" 
          style="display: flex; justify-content: center; align-items: center; min-height: 100px;">
@@ -29,7 +29,7 @@ function showLoader() {
   addEscapeHandler(loader);
 }
 
-function showTranslationPopup(text) {
+function showTranslationPopup(text, title = "DeepSeek Translator") {
   const oldPopup = document.getElementById("deepseek-translation-popup");
   if (oldPopup) {
     oldPopup.remove();
@@ -39,7 +39,7 @@ function showTranslationPopup(text) {
   popup.id = "deepseek-translation-popup";
   popup.innerHTML = `
     <div id="deepseek-popup-header">
-      <span>Перевод DeepSeek</span>
+      <span id="deepseek-popup-title">${title}</span>
       <button id="deepseek-close-btn">×</button>
     </div>
     <div id="deepseek-popup-content">${text}</div>
