@@ -1,7 +1,7 @@
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === "show_translation") {
-    showTranslationPopup(request.translation);
+    showTranslationPopup(request.translation, request.title);
   } else if (request.type === "show_loader") {
     showLoader();
   }

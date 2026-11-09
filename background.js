@@ -9,26 +9,15 @@ chrome.runtime.onInstalled.addListener(() => {
     title: "TLDR с DeepSeek",
     contexts: ["selection"]
   });
-});
-
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "translate-text") return;
-
-  const scriptResult = await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: () => {
-      const selection = window.getSelection();
-      return selection.toString();
-    },
+  chrome.contextMenus.create({
+    id: "fix-text",
+    title: "Исправить грамматику с DeepSeek",
+    contexts: ["selection"]
   });
-
-  const selectionText = (scriptResult[0]?.result || '').trim();
-
-  if (selectionText) translateText(selectionText, tab.id);
 });
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId !== "translate-text" && info.menuItemId !== "tldr-text") return;
+  if (info.menuItemId !== "translate-text" && info.menuItemId !== "tldr-text" && info.menuItemId !== "fix-text") return;
 
   const scriptResult = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
@@ -45,6 +34,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
       translateText(selectionText, tab.id);
     } else if (info.menuItemId === "tldr-text") {
       getTLDR(selectionText, tab.id);
+    } else if (info.menuItemId === "fix-text") {
+      fixGrammar(selectionText, tab.id);
     }
   }
 });
@@ -173,13 +164,80 @@ async function getTLDR(text, tabId) {
 
     chrome.tabs.sendMessage(tabId, {
       type: "show_translation",
-      translation: tldr
+      translation: tldr,
+      title: "TLDR"
     });
 
   } catch (error) {
     chrome.tabs.sendMessage(tabId, {
       type: "show_translation",
       translation: `Ошибка TLDR: ${error.message}`
+    });
+  }
+}
+
+async function fixGrammar(text, tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: ["content.js"]
+  });
+
+  chrome.tabs.sendMessage(tabId, { type: "show_loader" });
+
+  const { apiKey } = await chrome.storage.sync.get(["apiKey"]);
+  if (!apiKey) {
+    chrome.tabs.sendMessage(tabId, {
+      type: "show_translation",
+      translation: "Ошибка: API ключ DeepSeek не установлен. Нажмите на иконку расширения, чтобы его добавить."
+    });
+    return;
+  }
+
+  try {
+    const response = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: "deepseek-v4-flash",
+        messages: [
+          {
+            "role": "system",
+            "content": `You are a proofreader. Fix grammar and spelling mistakes in the text. IMPORTANT:
+1. Keep the original language of the text. Do NOT translate it.
+2. Preserve the original meaning, style, paragraph structure and line breaks.
+3. Return ONLY the corrected text, without any explanations or comments.`
+          },
+          { "role": "user", "content": text }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      let errorDetails = await response.text();
+      try {
+        const errorJson = JSON.parse(errorDetails);
+        errorDetails = JSON.stringify(errorJson, null, 2);
+      } catch (e) {
+      }
+      throw new Error(`Ошибка API: ${response.status} ${response.statusText}\n\nОтвет сервера:\n${errorDetails}`);
+    }
+
+    const data = await response.json();
+    const fixed = data.choices[0].message.content;
+
+    chrome.tabs.sendMessage(tabId, {
+      type: "show_translation",
+      translation: fixed,
+      title: "Исправленный текст"
+    });
+
+  } catch (error) {
+    chrome.tabs.sendMessage(tabId, {
+      type: "show_translation",
+      translation: `Ошибка исправления: ${error.message}`
     });
   }
 }
